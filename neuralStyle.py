@@ -16,7 +16,8 @@ STYLE_LAYERS = ('conv1_1', 'conv2_1', 'conv3_1', 'conv4_1', 'conv5_1')
 
 FLAGS = tf.app.flags.FLAGS
 
-
+########################
+# net을 구성하는데 도움을 줄 함수들
 # 혹시나 tensorboard가 보고 싶을까봐 namescope를 지정함
 def conv_namescope(input,weights_conv,bias_conv,namescope):
     with tf.variable_scope(namescope) as scope:
@@ -40,6 +41,7 @@ def pool_namescope(input,namescope):
             layer = tf.nn.avg_pool(input,ksize=[1,2,2,1],strides=[1,2,2,1],padding='SAME')
         return layer
 
+##############################
 # 실제 net을 구성하는 함수
 # current_layer를 넣어주면 그 위로 VGG19를 쌓아주는 함수이다
 # output으로 layer를 내놓는데 이 값은 각 레이어의 출력 텐서가 저장된 딕셔너리다
@@ -86,13 +88,16 @@ def net(current_layer):
 
 
 def main(_):
+    #######################
+    # feature를 저장하기 위한 과정
+
     # 사용할 이미지 받기
     content_image = scipy.misc.imread(FLAGS.content_path)
     content_size = (1,)+content_image.shape
     style_image = scipy.misc.imread(FLAGS.style_path)
     style_size = (1,) + style_image.shape
 
-    # content feature와 style feature를 저장
+    # net 구성
     image_input = tf.placeholder('float')
     current = image_input
     layers,mean_pixel = net(current)
@@ -116,14 +121,20 @@ def main(_):
             gram = np.matmul(feature_vec.T, feature_vec) / feature_vec.size
             style_save[name]=gram
 
-    # 새로운 이미지를 만든다
+    #######################################
+    # 새로운 이미지를 만드는 과정
     content_per_style = 1e-3 # 논문에 있던 content loss와 style loss의 적용 비율
     # 굳이 random에서 시작하지 말고 content 이미지에서 시작한다
     # 논문에서는 random에서 시작한다
     mix_image = tf.Variable(content_input, dtype='float32')
     current = mix_image
+
+    # net 구성
     layers, mean_pixel = net(current)
+
+    # content_loss
     content_loss = content_per_style*tf.nn.l2_loss(layers[CONTENT_LAYERS]-content_save)
+
     # style_loss는 여러 레이어에서 정해지므로 losses를 통해 전부 구하고 나중에 합친다.
     style_losses = []
     for name in STYLE_LAYERS:
@@ -133,8 +144,11 @@ def main(_):
         mix_feature_vec = tf.reshape(mix_feature,[-1,mix_feature.get_shape()[3].value])
         gram = tf.matmul(tf.transpose(mix_feature_vec),mix_feature_vec)/size.value # 여기서 .value 안했다가 오류난거 고치느라 힘들었음
         style_losses.append(tf.nn.l2_loss(gram-style_save[name]))
-    #원래 논문에서는 style_loss에 1/5를 곱해야 하지만... 어차피 content_per_style 값에 의해 의미가 없어진다
+    #원래 논문에서는 style_loss에 1/5를 곱해야 하지만...
+    # 어차피 content_per_style 값에 의해 의미가 없어진다
     style_loss = tf.reduce_sum(style_losses)
+
+    #최종 loss
     total_loss = content_loss+style_loss
 
     # 실행
@@ -153,6 +167,7 @@ def main(_):
                 mid = np.squeeze(mix_image.eval(), axis=0) + mean_pixel
                 scipy.misc.imsave("./images/mix"+str(it)+".png", mid)
             """
+        # 차원이 4차원이므로 차원을 줄이고 뺐던 mean_pixel를 더한다
         final = np.squeeze(mix_image.eval(),axis=0)+mean_pixel
         scipy.misc.imsave(FLAGS.mix_path,final)
 
