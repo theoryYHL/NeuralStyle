@@ -16,4 +16,3 @@ github연습겸 코딩연습겸 만든 코드이기 때문에 코드 자체보�
 
 imagenet-vgg-verydeep-19.mat는 http://www.vlfeat.org/matconvnet/models/beta16/imagenet-vgg-verydeep-19.mat 에서
 
-아니 이거 하이퍼링크는 어떻게 만들지... 
